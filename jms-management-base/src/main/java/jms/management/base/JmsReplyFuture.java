@@ -9,7 +9,6 @@ import java.util.concurrent.*;
 /**
  * @param <T>
  */
-//TODO-> Implementation of multiple message consumption
 public class JmsReplyFuture<T extends Serializable> implements ListenableFuture<T>, MessageListener {
 
     private enum State {WAITING, DONE, CANCELLED}
@@ -34,8 +33,25 @@ public class JmsReplyFuture<T extends Serializable> implements ListenableFuture<
         Session session0 = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
         Destination destination = session0.createQueue(queueName);
         MessageConsumer consumer = session0.createConsumer(destination, messageSelector);
+        connection.start();
         return new JmsReplyFuture<>(connection, session0, consumer);
     }
+
+
+    public static <T extends Serializable> JmsReplyFuture<T> newInstance(ConnectionFactory connectionFactory,
+                                                                         String queueName, String messageSelector,
+                                                                         Runnable listener, Executor executor) throws JMSException {
+        Connection connection = connectionFactory.createConnection();
+        Session session0 = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
+        Destination destination = session0.createQueue(queueName);
+        MessageConsumer consumer = session0.createConsumer(destination, messageSelector);
+
+        JmsReplyFuture<T> future = new JmsReplyFuture<>(connection, session0, consumer);
+        future.addListener(listener, executor);
+        connection.start();
+        return future;
+    }
+
 
     @Override
     public boolean cancel(boolean mayInterruptIfRunning) {
