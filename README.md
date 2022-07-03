@@ -1,2 +1,2 @@
 # jms-management
-It enables the management of JMS queues.
+A simple implementation that provides removes, updates, suspends and resumes operations on JMS queues.
