@@ -93,4 +93,27 @@ public class QueueManager {
         }
     }
 
+    public <T extends Serializable> Optional<T> suspend(String queueName, String suspendedMessageQueueName, T message,
+                                                        String messageSelector, long timeout, TimeUnit unit) throws JMSException, InterruptedException {
+
+        Optional<T> removedMessage = remove(queueName, messageSelector, timeout, unit);
+
+        if (removedMessage.isPresent()) {
+            try (Connection connection = connectionFactory.createConnection()) {
+                connection.start();
+                Session session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
+                Destination destination = session.createQueue(suspendedMessageQueueName);
+                ObjectMessage objectMessage = session.createObjectMessage(message);
+                MessageProducer producer = session.createProducer(destination);
+                producer.send(objectMessage);
+                producer.close();
+                session.close();
+                return removedMessage;
+            }
+        } else {
+            return Optional.empty();
+        }
+    }
+
+    
 }
