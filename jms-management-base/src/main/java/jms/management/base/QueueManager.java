@@ -93,16 +93,30 @@ public class QueueManager {
         }
     }
 
-    public <T extends Serializable> Optional<T> suspend(String queueName, String suspendedMessageQueueName, T message,
+    /**
+     * Suspends the message in the given resource queue. Pushes the message to the queue given as the target.
+     *
+     * @param sourceQueueName Queue containing the message to be suspended.
+     * @param targetQueueName The queue where the message to be suspended will be stored.
+     * @param message         Message to be suspended
+     * @param messageSelector Message selector
+     * @param timeout         timeout
+     * @param unit            time unit
+     * @param <T>             Type of the message
+     * @return Suspended message.
+     * @throws JMSException         If any failure occurred in JMS provider.
+     * @throws InterruptedException If  interrupted while waiting.
+     */
+    public <T extends Serializable> Optional<T> suspend(String sourceQueueName, String targetQueueName, T message,
                                                         String messageSelector, long timeout, TimeUnit unit) throws JMSException, InterruptedException {
 
-        Optional<T> removedMessage = remove(queueName, messageSelector, timeout, unit);
+        Optional<T> removedMessage = remove(sourceQueueName, messageSelector, timeout, unit);
 
         if (removedMessage.isPresent()) {
             try (Connection connection = connectionFactory.createConnection()) {
                 connection.start();
                 Session session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
-                Destination destination = session.createQueue(suspendedMessageQueueName);
+                Destination destination = session.createQueue(targetQueueName);
                 ObjectMessage objectMessage = session.createObjectMessage(message);
                 MessageProducer producer = session.createProducer(destination);
                 producer.send(objectMessage);
@@ -115,5 +129,24 @@ public class QueueManager {
         }
     }
 
-    
+    /**
+     * Resumes the message in the given suspended queue. Pushes the message to the queue given as the target.
+     *
+     * @param targetQueueName    The queue where the message to be resumed will be pushed.
+     * @param suspendedQueueName Queue containing the message to be resumed.
+     * @param message            Message to be resumed
+     * @param messageSelector    Message selector
+     * @param timeout            timeout
+     * @param unit               time unit
+     * @param <T>                Type of the message
+     * @return Resumed message.
+     * @throws JMSException         If any failure occurred in JMS provider.
+     * @throws InterruptedException If  interrupted while waiting.
+     */
+    public <T extends Serializable> Optional<T> resume(String targetQueueName, String suspendedQueueName,
+                                                       T message, String messageSelector, long timeout,
+                                                       TimeUnit unit) throws JMSException, InterruptedException {
+        return suspend(suspendedQueueName, targetQueueName, message, messageSelector, timeout, unit);
+    }
+
 }
